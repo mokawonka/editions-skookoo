@@ -90,8 +90,24 @@
       <div>
         <blockquote class="book-blurb" id="book-blurb"></blockquote>
 
-        <h2 class="book-summary-title">À propos de ce livre</h2>
-        <div class="book-summary-text" id="book-summary"></div>
+        <div class="spoiler-wrap" id="spoiler-wrap">
+          <h2 class="book-summary-title">À propos de ce livre</h2>
+
+          <!-- Avertissement spoiler -->
+          <div class="spoiler-warning" id="spoiler-warning">
+            <div class="spoiler-warning-inner">
+              <div class="spoiler-icon">🍯</div>
+              <p class="spoiler-label">Résumé détaillé</p>
+              <p class="spoiler-desc">Cette section contient un résumé approfondi qui pourrait révéler des éléments importants de l'histoire.</p>
+              <button class="spoiler-btn" id="spoiler-btn" onclick="revealSpoiler()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Afficher quand même
+              </button>
+            </div>
+          </div>
+
+          <div class="book-summary-text" id="book-summary" style="filter:blur(6px);user-select:none;transition:filter .5s ease;pointer-events:none;"></div>
+        </div>
       </div>
 
       <!-- SIDEBAR -->
@@ -189,9 +205,72 @@
   </div>
 </footer>
 
+<style>
+.spoiler-wrap { position: relative; }
+
+.spoiler-warning {
+  position: absolute;
+  inset: 2.5rem 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+.spoiler-warning.hidden { display: none; }
+
+.spoiler-warning-inner {
+  background: var(--white);
+  border: 1px solid rgba(232,160,32,.25);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(42,31,14,.12);
+  padding: 1.75rem 2rem;
+  text-align: center;
+  max-width: 340px;
+  pointer-events: all;
+}
+
+.spoiler-icon { font-size: 2rem; margin-bottom: .5rem; }
+
+.spoiler-label {
+  font-family: var(--font-display);
+  font-size: 1.1rem; font-weight: 600;
+  color: var(--comb);
+  margin-bottom: .4rem;
+}
+
+.spoiler-desc {
+  font-size: .8375rem;
+  color: var(--comb-soft);
+  line-height: 1.6;
+  margin-bottom: 1.1rem;
+}
+
+.spoiler-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: var(--honey);
+  color: var(--comb);
+  font-family: var(--font-body);
+  font-size: .875rem; font-weight: 500;
+  padding: .6rem 1.25rem;
+  border-radius: var(--radius);
+  border: none; cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+  box-shadow: 0 2px 8px rgba(232,160,32,.3);
+}
+.spoiler-btn:hover { background: var(--honey-light); transform: translateY(-1px); }
+</style>
+
 <script src="js/skookoo.js"></script>
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
+
+  function revealSpoiler() {
+    document.getElementById('book-summary').style.filter = 'none';
+    document.getElementById('book-summary').style.pointerEvents = 'auto';
+    document.getElementById('book-summary').style.userSelect = 'auto';
+    document.getElementById('spoiler-warning').classList.add('hidden');
+  }
 
   // ── Lire le paramètre ?id= ──
   const params = new URLSearchParams(window.location.search);
