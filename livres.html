@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bibliothèque — Éditions Skookoo</title>
+  <meta name="description" content="Parcourez la bibliothèque complète d'Éditions Skookoo : des centaines de livres numériques francophones libres de droits, avec couvertures et résumés générés par IA." />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ========= NAVIGATION ========= -->
+<nav class="nav" role="navigation" aria-label="Navigation principale">
+  <a href="index.html" class="nav-logo" aria-label="Éditions Skookoo — Accueil">
+    <img src="assets/logo.png" alt="Abeille robot — logo Éditions Skookoo" />
+    Éditions Skookoo
+  </a>
+  <ul class="nav-links" role="list">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="livres.html" style="color:var(--honey)">Bibliothèque</a></li>
+    <li><a href="index.html#mission">Notre mission</a></li>
+    <li><a href="index.html#processus">Processus</a></li>
+  </ul>
+</nav>
+
+<!-- ========= LIBRARY HERO + SEARCH ========= -->
+<header class="library-hero" role="banner">
+  <h1 class="library-hero-title">Notre bibliothèque</h1>
+  <p class="library-hero-sub">
+    Des œuvres du domaine public, enrichies par l'intelligence artificielle.
+    Chaque livre est gratuit et téléchargeable en EPUB.
+  </p>
+
+  <div class="search-bar-wrap" role="search">
+    <label for="search-input" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Rechercher un livre</label>
+    <input
+      type="search"
+      id="search-input"
+      class="search-bar"
+      placeholder="Rechercher par titre, auteur…"
+      aria-label="Rechercher un livre par titre ou auteur"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+  </div>
+
+  <div class="filter-row" id="filter-row" role="group" aria-label="Filtrer par genre">
+    <button class="filter-chip active" data-genre="all">Tous</button>
+    <!-- Les genres seront ajoutés dynamiquement -->
+  </div>
+</header>
+
+<!-- ========= LIBRARY MAIN ========= -->
+<main class="library-main" id="main-content">
+  <div class="library-toolbar">
+    <div class="library-count" id="library-count" aria-live="polite">
+      Chargement…
+    </div>
+    <select class="sort-select" id="sort-select" aria-label="Trier les livres">
+      <option value="alpha">Titre (A → Z)</option>
+      <option value="alpha-desc">Titre (Z → A)</option>
+      <option value="author">Auteur (A → Z)</option>
+    </select>
+  </div>
+
+  <div class="library-grid" id="library-grid" aria-label="Liste des livres">
+    <!-- Squelettes de chargement -->
+  </div>
+</main>
+
+<!-- ========= FOOTER ========= -->
+<footer class="footer" role="contentinfo">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand-name">Éditions Skookoo</div>
+      <p class="footer-brand-desc">
+        Bibliothèque numérique francophone libre de droits,
+        propulsée par l'intelligence artificielle.
+      </p>
+    </div>
+    <div>
+      <div class="footer-col-title">Navigation</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="livres.html">Bibliothèque</a></li>
+        <li><a href="index.html#mission">Notre mission</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Informations</div>
+      <ul class="footer-links">
+        <li><a href="#">Domaine public</a></li>
+        <li><a href="#">Formats EPUB</a></li>
+        <li><a href="#">À propos de l'IA</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-logo-sm">
+      <img src="assets/logo.png" alt="" aria-hidden="true" />
+      <span>© <span id="year"></span> Éditions Skookoo</span>
+    </div>
+    <span>Tous les livres sont libres de droits · Propulsé par l'IA</span>
+  </div>
+</footer>
+
+<script src="js/skookoo.js"></script>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // ── État ──
+  let allBooks = [];
+  let activeGenre = 'all';
+  let searchQuery = '';
+  let sortOrder = 'alpha';
+
+  // ── DOM ──
+  const grid       = document.getElementById('library-grid');
+  const countEl    = document.getElementById('library-count');
+  const searchEl   = document.getElementById('search-input');
+  const sortEl     = document.getElementById('sort-select');
+  const filterRow  = document.getElementById('filter-row');
+
+  // ── Squelettes ──
+  SK.renderSkeletons(grid, 12);
+
+  // ── Chargement ──
+  async function init() {
+    try {
+      allBooks = await SK.fetchAllBooks();
+      buildGenreFilters();
+      renderBooks();
+    } catch (err) {
+      console.error(err);
+      grid.innerHTML = `
+        <div class="no-results" style="grid-column:1/-1">
+          <div class="no-results-icon">⚠️</div>
+          <p>Erreur lors du chargement. Vérifiez la configuration R2 dans <code>js/skookoo.js</code>.</p>
+        </div>`;
+    }
+  }
+
+  // ── Genres (extraits des métadonnées si disponibles) ──
+  function buildGenreFilters() {
+    // Tente d'extraire les genres des métadonnées brutes
+    const genres = new Set();
+    allBooks.forEach(b => {
+      const g = b.raw?.genre || b.raw?.category || b.raw?.categorie;
+      if (g) genres.add(g);
+    });
+
+    genres.forEach(genre => {
+      const chip = document.createElement('button');
+      chip.className = 'filter-chip';
+      chip.dataset.genre = genre;
+      chip.textContent = genre;
+      chip.addEventListener('click', () => setGenre(genre));
+      filterRow.appendChild(chip);
+    });
+  }
+
+  function setGenre(genre) {
+    activeGenre = genre;
+    filterRow.querySelectorAll('.filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.genre === genre);
+    });
+    renderBooks();
+  }
+
+  // ── Filtre & tri ──
+  function getFilteredBooks() {
+    let books = allBooks;
+
+    // Filtre genre
+    if (activeGenre !== 'all') {
+      books = books.filter(b => {
+        const g = b.raw?.genre || b.raw?.category || b.raw?.categorie || '';
+        return g === activeGenre;
+      });
+    }
+
+    // Filtre texte
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      books = books.filter(b => {
+        const t = (b.title + ' ' + b.author).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        return t.includes(q);
+      });
+    }
+
+    // Tri
+    books = [...books].sort((a, b) => {
+      if (sortOrder === 'alpha')      return a.title.localeCompare(b.title, 'fr');
+      if (sortOrder === 'alpha-desc') return b.title.localeCompare(a.title, 'fr');
+      if (sortOrder === 'author')     return a.author.localeCompare(b.author, 'fr');
+      return 0;
+    });
+
+    return books;
+  }
+
+  // ── Rendu ──
+  function renderBooks() {
+    const books = getFilteredBooks();
+
+    // Mise à jour compteur
+    countEl.innerHTML = `<strong>${books.length}</strong> livre${books.length !== 1 ? 's' : ''} trouvé${books.length !== 1 ? 's' : ''}`;
+
+    grid.innerHTML = '';
+
+    if (!books.length) {
+      grid.innerHTML = `
+        <div class="no-results">
+          <div class="no-results-icon">🔍</div>
+          <p>Aucun livre ne correspond à votre recherche.</p>
+          <button onclick="clearSearch()" style="margin-top:1rem;color:var(--honey);background:none;border:none;cursor:pointer;font-size:.9rem;text-decoration:underline">Effacer la recherche</button>
+        </div>`;
+      return;
+    }
+
+    // Rendu en fragments pour la performance
+    const fragment = document.createDocumentFragment();
+    books.forEach((book, i) => {
+      const card = SK.createBookCard(book);
+      card.style.animationDelay = `${(i % 12) * 40}ms`;
+      fragment.appendChild(card);
+    });
+    grid.appendChild(fragment);
+
+    // Initialise les animations
+    requestAnimationFrame(() => {
+      const observer = new IntersectionObserver(
+        entries => entries.forEach(e => {
+          if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+        }),
+        { threshold: 0.05, rootMargin: '0px 0px -20px 0px' }
+      );
+      grid.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    });
+  }
+
+  function clearSearch() {
+    searchEl.value = '';
+    searchQuery = '';
+    renderBooks();
+  }
+
+  // ── Événements ──
+  let searchTimer;
+  searchEl.addEventListener('input', e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchQuery = e.target.value;
+      renderBooks();
+    }, 200);
+  });
+
+  sortEl.addEventListener('change', e => {
+    sortOrder = e.target.value;
+    renderBooks();
+  });
+
+  // Filtre "Tous"
+  filterRow.querySelector('[data-genre="all"]').addEventListener('click', () => setGenre('all'));
+
+  // ── Init ──
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# GitHub Pages Configuration — Éditions Skookoo
+# Ce fichier indique à GitHub Pages de servir le site tel quel (sans Jekyll)
+
+# Désactive le traitement Jekyll pour servir les fichiers HTML/CSS/JS directement
+# Si vous souhaitez utiliser Jekyll, supprimez ou renommez ce fichier
