@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panier — Éditions Skookoo</title>
+  <meta name="description" content="Votre panier de commandes — Éditions Skookoo" />
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     ⚙️  CONFIGURATION — 2 valeurs à renseigner seulement
+══════════════════════════════════════════════════════ -->
+<script>
+  // URL de votre Cloudflare Worker (affiché après "Deploy" dans le dashboard)
+  // Exemple : https://skookoo-mailer.votre-compte.workers.dev
+  const WORKER_URL = 'https://email-worker.mohamed-mokaddem.workers.dev';
+
+  // Site Key hCaptcha (public, visible dans le code — c'est normal)
+  // Remplacez par votre vraie clé depuis hcaptcha.com → Sites
+  const HCAPTCHA_SITEKEY = '8e927452-1640-4676-8fd8-361cadd0e9aa';
+</script>
+
+<!-- ========= NAVIGATION ========= -->
+<nav class="nav" role="navigation" aria-label="Navigation principale">
+  <a href="index.html" class="nav-logo" aria-label="Éditions Skookoo — Accueil">
+    <img src="assets/logo.png" alt="Abeille robot — logo Éditions Skookoo" />
+    Éditions Skookoo
+  </a>
+  <ul class="nav-links" role="list">
+    <li><a href="index.html">Accueil</a></li>
+    <li><a href="livres.html">Bibliothèque</a></li>
+    <li><a href="index.html#mission">Notre mission</a></li>
+  </ul>
+  <a href="panier.html" class="nav-cart" aria-label="Panier">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <path d="M16 10a4 4 0 01-8 0"/>
+    </svg>
+    <span class="cart-badge" id="cart-badge" style="display:none">0</span>
+  </a>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<main id="page-main" style="padding-top:72px;min-height:100vh;background:var(--wax-light)">
+
+  <!-- HERO -->
+  <div class="cart-hero">
+    <div class="cart-hero-inner">
+      <h1 class="cart-hero-title">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--honey)" stroke-width="2" style="flex-shrink:0">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        Votre panier
+      </h1>
+      <p class="cart-hero-sub">Vérifiez votre commande puis renseignez vos coordonnées</p>
+    </div>
+  </div>
+
+  <!-- EMPTY STATE -->
+  <div id="cart-empty" style="display:none;text-align:center;padding:6rem 2rem">
+    <div style="font-size:4rem;margin-bottom:1.5rem;opacity:.3">🛒</div>
+    <h2 style="font-family:var(--font-display);font-size:1.75rem;color:var(--comb);margin-bottom:.75rem">Votre panier est vide</h2>
+    <p style="color:var(--comb-soft);margin-bottom:2rem">Ajoutez des livres depuis la bibliothèque pour commander votre édition papier.</p>
+    <a href="livres.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:.5rem">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      Parcourir la bibliothèque
+    </a>
+  </div>
+
+  <!-- CART CONTENT -->
+  <div id="cart-content" style="display:none">
+    <div class="cart-layout">
+
+      <!-- ── LEFT COLUMN ── -->
+      <div class="cart-left">
+
+        <!-- Articles -->
+        <div class="cart-section">
+          <h2 class="cart-section-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+            Articles commandés
+          </h2>
+          <div id="cart-items-list"></div>
+        </div>
+
+        <!-- Informations client -->
+        <div class="cart-section">
+          <h2 class="cart-section-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Vos informations
+          </h2>
+          <div class="form-grid">
+            <div class="form-field">
+              <label class="form-label" for="f-name">Nom complet <span class="form-req">*</span></label>
+              <input type="text" id="f-name" class="form-input" placeholder="Mohamed Benali" autocomplete="name" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="f-email">Adresse e-mail <span class="form-req">*</span></label>
+              <input type="email" id="f-email" class="form-input" placeholder="vous@exemple.com" autocomplete="email" />
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="f-phone">Téléphone <span class="form-req">*</span></label>
+              <input type="tel" id="f-phone" class="form-input" placeholder="+213 6XX XXX XXX" autocomplete="tel" />
+            </div>
+            <div class="form-field form-field-full">
+              <label class="form-label" for="f-address">Adresse de livraison <span class="form-req">*</span></label>
+              <textarea id="f-address" class="form-input form-textarea" placeholder="N° rue, Quartier, Ville, Wilaya, Code postal" rows="3" autocomplete="street-address"></textarea>
+            </div>
+            <div class="form-field form-field-full">
+              <label class="form-label" for="f-notes">
+                Notes
+                <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--comb-soft);font-size:.8rem">(optionnel)</span>
+              </label>
+              <textarea id="f-notes" class="form-input form-textarea" placeholder="Instructions spéciales, précisions sur l'adresse…" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- hCaptcha -->
+        <div class="cart-section">
+          <h2 class="cart-section-title">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            Vérification anti-robot
+          </h2>
+          <p style="font-size:.875rem;color:var(--comb-soft);margin-bottom:1.25rem;line-height:1.65">
+            Cochez la case ci-dessous pour confirmer que vous êtes humain.
+            Votre token est vérifié de façon sécurisée côté serveur.
+          </p>
+          <div id="hcaptcha-widget"></div>
+        </div>
+
+      </div><!-- /cart-left -->
+
+      <!-- ── RIGHT COLUMN: Summary ── -->
+      <div class="cart-right">
+        <div class="cart-summary-card">
+          <div class="cart-summary-title">Récapitulatif</div>
+
+          <div id="summary-lines"></div>
+
+          <div class="summary-divider"></div>
+          <div class="summary-row">
+            <span>Sous-total livres</span>
+            <span id="sum-books">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Livraison</span>
+            <span id="sum-delivery">500 DA</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-row summary-total">
+            <span>Total</span>
+            <span id="sum-total">—</span>
+          </div>
+
+          <div class="summary-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+            1 000 DA par livre · 500 DA de livraison unique quelle que soit la quantité
+          </div>
+
+          <button class="order-btn" id="order-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+            </svg>
+            Confirmer la commande
+          </button>
+
+          <p class="summary-secure">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            Paiement à la livraison · Aucune donnée bancaire
+          </p>
+        </div>
+
+        <a href="livres.html" class="cart-continue">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Continuer mes achats
+        </a>
+      </div>
+
+    </div>
+  </div><!-- /cart-content -->
+
+</main>
+
+<!-- ══════════ SUCCESS SCREEN ══════════ -->
+<div id="order-success"
+     style="display:none;min-height:80vh;padding:4rem 2rem;background:var(--wax-light);
+            flex-direction:column;align-items:center;justify-content:center">
+  <div class="success-card">
+    <span class="success-bee">🐝</span>
+    <h1 class="success-title">Commande confirmée&nbsp;!</h1>
+    <p class="success-body">
+      Merci pour votre commande. Un e-mail de confirmation a été envoyé à
+      <strong id="success-email"></strong>.<br/>
+      Nous vous contacterons sous <strong>48h</strong> pour organiser la livraison.
+    </p>
+    <div class="success-ref">Référence&nbsp;: <strong id="success-ref-val"></strong></div>
+    <a href="livres.html" class="btn-primary" style="display:inline-flex;align-items:center;gap:.5rem;margin-top:2rem">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      Retour à la bibliothèque
+    </a>
+  </div>
+</div>
+
+<!-- ========= FOOTER ========= -->
+<footer class="footer" role="contentinfo">
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand-name">Éditions Skookoo</div>
+      <p class="footer-brand-desc">Bibliothèque numérique francophone libre de droits, propulsée par l'IA.</p>
+    </div>
+    <div>
+      <div class="footer-col-title">Navigation</div>
+      <ul class="footer-links">
+        <li><a href="index.html">Accueil</a></li>
+        <li><a href="livres.html">Bibliothèque</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="footer-col-title">Informations</div>
+      <ul class="footer-links">
+        <li><a href="#">Domaine public</a></li>
+        <li><a href="#">Formats EPUB</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-logo-sm">
+      <img src="assets/logo.png" alt="" aria-hidden="true" />
+      <span>© <span id="year"></span> Éditions Skookoo</span>
+    </div>
+    <span>Tous les livres sont libres de droits · Propulsé par l'IA</span>
+  </div>
+</footer>
+
+<div id="sk-toast" class="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     STYLES
+══════════════════════════════════════════ -->
+<style>
+/* Nav cart */
+.nav-cart{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:40px;height:40px;color:var(--comb-mid);border-radius:50%;
+  transition:color var(--transition),background var(--transition);margin-left:1rem;
+}
+.nav-cart:hover{color:var(--comb);background:rgba(232,160,32,.1);}
+.cart-badge{
+  position:absolute;top:2px;right:2px;background:var(--honey);color:var(--comb);
+  font-size:.6rem;font-weight:700;width:16px;height:16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Hero */
+.cart-hero{background:var(--comb);padding:3rem clamp(1.5rem,5vw,4rem) 2.5rem;}
+.cart-hero-inner{max-width:1100px;margin:0 auto;}
+.cart-hero-title{
+  font-family:var(--font-display);font-size:clamp(1.75rem,4vw,2.75rem);
+  font-weight:300;color:var(--wax-light);
+  display:flex;align-items:center;gap:.875rem;margin-bottom:.5rem;
+}
+.cart-hero-sub{font-size:.9375rem;color:rgba(245,230,200,.5);}
+
+/* Layout */
+.cart-layout{
+  max-width:1100px;margin:0 auto;
+  display:grid;grid-template-columns:1fr 340px;gap:2.5rem;
+  padding:2.5rem clamp(1.5rem,5vw,4rem) 5rem;
+  align-items:start;
+}
+
+/* Section card */
+.cart-section{
+  background:var(--white);border-radius:var(--radius-lg);
+  border:1px solid rgba(232,160,32,.12);
+  padding:1.75rem;margin-bottom:1.5rem;
+}
+.cart-section:last-child{margin-bottom:0;}
+.cart-section-title{
+  font-family:var(--font-display);font-size:1.125rem;font-weight:500;color:var(--comb);
+  display:flex;align-items:center;gap:.625rem;
+  margin-bottom:1.5rem;padding-bottom:1rem;
+  border-bottom:1px solid rgba(232,160,32,.1);
+}
+
+/* Cart item */
+.cart-item{
+  display:grid;grid-template-columns:76px 1fr auto;
+  gap:1.25rem;align-items:start;
+  padding:1.1rem 0;border-bottom:1px solid rgba(232,160,32,.07);
+}
+.cart-item:first-child{padding-top:0;}
+.cart-item:last-child{border-bottom:none;padding-bottom:0;}
+.cart-item-cover{width:76px;height:114px;object-fit:cover;border-radius:4px;box-shadow:var(--shadow-card);}
+.cart-item-title{font-family:var(--font-display);font-size:1rem;font-weight:500;color:var(--comb);line-height:1.3;margin-bottom:.25rem;}
+.cart-item-author{font-size:.8125rem;color:var(--comb-soft);font-style:italic;margin-bottom:.75rem;}
+.cart-item-tags{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.8rem;}
+.cart-tag{
+  font-size:.68rem;font-weight:700;letter-spacing:.03em;
+  background:var(--wax-light);color:var(--comb-mid);
+  border:1px solid rgba(232,160,32,.2);
+  padding:.2rem .55rem;border-radius:100px;
+}
+.cart-qty-row{display:flex;align-items:center;gap:.5rem;}
+.cart-qty-btn{
+  width:28px;height:28px;border-radius:50%;
+  border:1.5px solid rgba(232,160,32,.3);background:var(--wax-light);
+  color:var(--comb-mid);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--transition);
+}
+.cart-qty-btn:hover{background:var(--honey);border-color:var(--honey);color:var(--comb);}
+.cart-qty-num{font-size:.9375rem;font-weight:700;color:var(--comb);min-width:1.5rem;text-align:center;}
+.cart-remove-btn{
+  display:inline-flex;align-items:center;gap:.3rem;
+  font-size:.73rem;color:rgba(42,31,14,.3);
+  background:none;border:none;cursor:pointer;padding:0;margin-top:.5rem;
+  transition:color var(--transition);
+}
+.cart-remove-btn:hover{color:#c0392b;}
+.cart-item-price{font-family:var(--font-display);font-size:1.1rem;font-weight:500;color:var(--amber);white-space:nowrap;padding-top:.25rem;}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.1rem;}
+.form-field{display:flex;flex-direction:column;gap:.4rem;}
+.form-field-full{grid-column:1/-1;}
+.form-label{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--comb-mid);}
+.form-req{color:var(--honey-dark);}
+.form-input{
+  padding:.75rem 1rem;border-radius:var(--radius);
+  border:1.5px solid rgba(42,31,14,.13);
+  background:var(--wax-light);
+  font-family:var(--font-body);font-size:.9375rem;color:var(--comb);
+  outline:none;resize:none;
+  transition:border-color var(--transition),background var(--transition),box-shadow var(--transition);
+}
+.form-input::placeholder{color:rgba(42,31,14,.28);}
+.form-input:focus{border-color:var(--honey);background:var(--white);box-shadow:0 0 0 3px rgba(232,160,32,.12);}
+.form-input.error{border-color:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.1);}
+.form-textarea{line-height:1.65;}
+
+/* Summary */
+.cart-summary-card{
+  background:var(--white);border-radius:var(--radius-lg);
+  border:1px solid rgba(232,160,32,.15);
+  padding:1.75rem;position:sticky;top:88px;
+}
+.cart-summary-title{
+  font-family:var(--font-display);font-size:1.125rem;font-weight:500;color:var(--comb);
+  margin-bottom:1.25rem;padding-bottom:1rem;
+  border-bottom:1px solid rgba(232,160,32,.1);
+}
+.summary-line{display:flex;align-items:center;gap:.75rem;padding:.5rem 0;}
+.summary-line-cover{width:34px;height:51px;object-fit:cover;border-radius:3px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.summary-line-info{flex:1;min-width:0;}
+.summary-line-title{font-size:.8125rem;font-weight:600;color:var(--comb);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.summary-line-qty{font-size:.73rem;color:var(--comb-soft);margin-top:2px;}
+.summary-line-price{font-size:.8125rem;font-weight:700;color:var(--comb);white-space:nowrap;margin-left:auto;}
+.summary-divider{height:1px;background:rgba(232,160,32,.12);margin:.875rem 0;}
+.summary-row{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--comb-soft);padding:.3rem 0;}
+.summary-total{font-size:1.15rem;font-weight:700;color:var(--comb);padding:.5rem 0;}
+.summary-total span:last-child{color:var(--honey-dark);}
+.summary-note{
+  display:flex;align-items:flex-start;gap:.4rem;
+  font-size:.72rem;color:var(--comb-soft);line-height:1.6;
+  background:var(--wax-light);border-radius:var(--radius);
+  padding:.625rem .75rem;margin:1rem 0 1.25rem;
+}
+
+/* Order button */
+.order-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:.75rem;
+  background:linear-gradient(135deg,var(--honey) 0%,#C07010 100%);
+  color:var(--comb);font-family:var(--font-body);
+  font-size:1rem;font-weight:700;letter-spacing:.02em;
+  padding:1rem;border-radius:100px;border:none;cursor:pointer;
+  box-shadow:0 6px 24px rgba(232,160,32,.4);
+  transition:transform var(--transition),box-shadow var(--transition),filter var(--transition);
+}
+.order-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(232,160,32,.5);filter:brightness(1.07);}
+.order-btn:active{transform:translateY(0);}
+.order-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;filter:none;}
+.summary-secure{display:flex;align-items:center;justify-content:center;gap:.4rem;font-size:.72rem;color:var(--comb-soft);margin-top:.875rem;text-align:center;}
+.cart-continue{display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:.875rem;color:var(--comb-soft);margin-top:1rem;transition:color var(--transition);}
+.cart-continue:hover{color:var(--honey-dark);}
+
+/* Spinner */
+.btn-spinner{
+  width:17px;height:17px;border-radius:50%;flex-shrink:0;
+  border:2.5px solid rgba(42,31,14,.2);border-top-color:var(--comb);
+  animation:spin .7s linear infinite;
+}
+
+/* Success */
+.success-card{
+  max-width:520px;margin:3rem auto;
+  background:var(--white);border-radius:var(--radius-lg);
+  border:1px solid rgba(232,160,32,.15);
+  padding:3rem 2.5rem;text-align:center;
+  box-shadow:var(--shadow-card);
+}
+.success-bee{font-size:4rem;display:block;margin-bottom:1rem;animation:float 3s ease-in-out infinite;}
+.success-title{font-family:var(--font-display);font-size:2rem;font-weight:400;color:var(--comb);margin-bottom:1rem;}
+.success-body{font-size:1rem;color:var(--comb-soft);line-height:1.8;margin-bottom:1.5rem;}
+.success-ref{
+  display:inline-block;font-size:.8rem;font-family:monospace;
+  background:var(--wax-light);color:var(--amber);
+  border:1px solid rgba(232,160,32,.25);
+  padding:.4rem 1.25rem;border-radius:100px;letter-spacing:.06em;
+}
+
+/* Responsive */
+@media(max-width:860px){
+  .cart-layout{grid-template-columns:1fr;}
+  .cart-summary-card{position:static;}
+}
+@media(max-width:560px){
+  .form-grid{grid-template-columns:1fr;}
+  .cart-item{grid-template-columns:60px 1fr auto;}
+  .cart-item-cover{width:60px;height:90px;}
+}
+</style>
+
+<!-- ══════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════ -->
+<script src="js/skookoo.js"></script>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+/* ─── Cart helper ─── */
+const Cart = {
+  key: 'skookoo_cart',
+  get()       { try { return JSON.parse(localStorage.getItem(this.key)||'[]'); } catch { return []; } },
+  save(a)     { localStorage.setItem(this.key, JSON.stringify(a)); },
+  clear()     { localStorage.removeItem(this.key); },
+  count()     { return this.get().reduce((s,i)=>s+(i.qty||1),0); },
+  removeAt(i) { const a=this.get(); a.splice(i,1); this.save(a); },
+  setQty(i,q) { const a=this.get(); if(q<1){a.splice(i,1);}else{a[i].qty=q;} this.save(a); }
+};
+
+function updateBadge() {
+  const n = Cart.count();
+  const b = document.getElementById('cart-badge');
+  b.textContent = n;
+  b.style.display = n > 0 ? 'flex' : 'none';
+}
+updateBadge();
+
+/* ─── Helpers ─── */
+const fmtDA      = n => n.toLocaleString('fr-DZ') + ' DA';
+const paperLabel = p => p === 'bouffant' ? 'Bouffant' : 'Standard';
+const genRef     = () => 'SKO-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2,5).toUpperCase();
+
+/* ─── Render cart ─── */
+function renderCart() {
+  const items = Cart.get();
+  updateBadge();
+
+  if (!items.length) {
+    document.getElementById('cart-empty').style.display   = 'block';
+    document.getElementById('cart-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('cart-empty').style.display   = 'none';
+  document.getElementById('cart-content').style.display = 'block';
+
+  /* Items */
+  const list = document.getElementById('cart-items-list');
+  list.innerHTML = '';
+  items.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `
+      <img class="cart-item-cover"
+           src="${SK.escHtml(item.coverUrl)}"
+           alt="${SK.escHtml(item.title)}"
+           onerror="this.src='assets/cover-placeholder.svg'" />
+      <div>
+        <div class="cart-item-title">${SK.escHtml(item.title)}</div>
+        <div class="cart-item-author">${SK.escHtml(item.author)}</div>
+        <div class="cart-item-tags">
+          <span class="cart-tag">📝 ${SK.escHtml(item.font)}</span>
+          <span class="cart-tag">🔡 ${item.fontSize} pt</span>
+          <span class="cart-tag">↕ ${parseFloat(item.lineSpacing).toFixed(1)}×</span>
+          <span class="cart-tag">📄 ${paperLabel(item.paper)}</span>
+        </div>
+        <div class="cart-qty-row">
+          <button class="cart-qty-btn" data-idx="${idx}" data-delta="-1">−</button>
+          <span class="cart-qty-num">${item.qty}</span>
+          <button class="cart-qty-btn" data-idx="${idx}" data-delta="1">+</button>
+          <button class="cart-remove-btn" data-idx="${idx}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+            </svg>
+            Supprimer
+          </button>
+        </div>
+      </div>
+      <div class="cart-item-price">${fmtDA(item.qty * item.unitPrice)}</div>`;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('.cart-qty-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = +btn.dataset.idx;
+      Cart.setQty(idx, Cart.get()[idx].qty + +btn.dataset.delta);
+      renderCart();
+    });
+  });
+  list.querySelectorAll('.cart-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => { Cart.removeAt(+btn.dataset.idx); renderCart(); });
+  });
+
+  /* Summary */
+  const summaryLines = document.getElementById('summary-lines');
+  summaryLines.innerHTML = '';
+  let booksTotal = 0;
+  items.forEach(item => {
+    booksTotal += item.qty * item.unitPrice;
+    const row = document.createElement('div');
+    row.className = 'summary-line';
+    row.innerHTML = `
+      <img class="summary-line-cover" src="${SK.escHtml(item.coverUrl)}" alt=""
+           onerror="this.src='assets/cover-placeholder.svg'" />
+      <div class="summary-line-info">
+        <div class="summary-line-title">${SK.escHtml(item.title)}</div>
+        <div class="summary-line-qty">× ${item.qty}</div>
+      </div>
+      <span class="summary-line-price">${fmtDA(item.qty * item.unitPrice)}</span>`;
+    summaryLines.appendChild(row);
+  });
+
+  document.getElementById('sum-books').textContent    = fmtDA(booksTotal);
+  document.getElementById('sum-delivery').textContent = fmtDA(500);
+  document.getElementById('sum-total').textContent    = fmtDA(booksTotal + 500);
+}
+renderCart();
+
+/* ─── Init hCaptcha with dynamic sitekey ─── */
+function initCaptcha() {
+  if (typeof hcaptcha === 'undefined') { setTimeout(initCaptcha, 300); return; }
+  hcaptcha.render('hcaptcha-widget', { sitekey: HCAPTCHA_SITEKEY });
+}
+initCaptcha();
+
+/* ─── Form validation ─── */
+function validate() {
+  let ok = true;
+  ['f-name','f-email','f-phone','f-address'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el.value.trim()) { el.classList.add('error'); ok = false; }
+    else el.classList.remove('error');
+  });
+  const em = document.getElementById('f-email');
+  if (em.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em.value)) {
+    em.classList.add('error'); ok = false;
+  }
+  return ok;
+}
+['f-name','f-email','f-phone','f-address'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    if (e.target.value.trim()) e.target.classList.remove('error');
+  });
+});
+
+/* ─── Submit ─── */
+document.getElementById('order-btn').addEventListener('click', async () => {
+
+  if (!validate()) {
+    SK.showToast('Veuillez remplir tous les champs obligatoires.');
+    return;
+  }
+
+  // Get hCaptcha token — verified server-side in the Worker
+  const captchaToken = hcaptcha.getResponse();
+  if (!captchaToken) {
+    SK.showToast('Veuillez compléter la vérification anti-robot.');
+    return;
+  }
+
+  const items = Cart.get();
+  if (!items.length) { SK.showToast('Votre panier est vide.'); return; }
+
+  const btn = document.getElementById('order-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="btn-spinner"></span> Envoi en cours…`;
+
+  const customer = {
+    name:    document.getElementById('f-name').value.trim(),
+    email:   document.getElementById('f-email').value.trim(),
+    phone:   document.getElementById('f-phone').value.trim(),
+    address: document.getElementById('f-address').value.trim(),
+    notes:   document.getElementById('f-notes').value.trim(),
+  };
+  const booksTotal = items.reduce((s,i) => s + i.qty * i.unitPrice, 0);
+  const total = booksTotal + 500;
+  const ref   = genRef();
+
+  try {
+    // POST to Cloudflare Worker
+    // The Worker verifies the captchaToken with the secret key,
+    // then sends both emails via Resend — all server-side.
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ captchaToken, customer, items, ref, total })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    // ✅ Success
+    Cart.clear();
+    document.getElementById('page-main').style.display   = 'none';
+    document.getElementById('success-email').textContent  = customer.email;
+    document.getElementById('success-ref-val').textContent = ref;
+    const s = document.getElementById('order-success');
+    s.style.display = 'flex';
+
+  } catch (err) {
+    console.error(err);
+    btn.disabled = false;
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+      </svg>
+      Confirmer la commande`;
+    SK.showToast('Erreur : ' + err.message + '. Réessayez.');
+    hcaptcha.reset();
+  }
+});
+</script>
+</body>
+</html>
