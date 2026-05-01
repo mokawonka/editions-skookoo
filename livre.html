@@ -111,9 +111,6 @@
           <div class="book-info-row"><span class="book-info-label">Format</span><span class="book-info-value">EPUB</span></div>
           <div class="book-info-row"><span class="book-info-label">Droits</span><span class="book-info-value">Domaine public</span></div>
           <div class="book-info-row"><span class="book-info-label">Couverture</span><span class="book-info-value">Générée par IA</span></div>
-          <div class="book-info-row" id="sidebar-model-row" style="display:none"><span class="book-info-label">Modèle d'embedding</span><span class="book-info-value" id="sidebar-model">—</span></div>
-          <div class="book-info-row" id="sidebar-dim-row" style="display:none"><span class="book-info-label">Dimension vectorielle</span><span class="book-info-value" id="sidebar-dim">—</span></div>
-          <div class="book-info-row" id="sidebar-chunks-row" style="display:none"><span class="book-info-label">Segments analysés</span><span class="book-info-value" id="sidebar-chunks">—</span></div>
         </div>
         <div style="margin-top:1.5rem;">
           <a id="btn-epub-2" href="#" class="btn-primary" download style="width:100%;justify-content:center;">
@@ -746,9 +743,6 @@
     } else summaryEl.innerHTML = '<p style="color:var(--comb-soft);font-style:italic">Aucun résumé disponible.</p>';
     document.getElementById('btn-epub').href = book.epubUrl;
     document.getElementById('btn-epub-2').href = book.epubUrl;
-    if (book.embedModel) { document.getElementById('sidebar-model').textContent = book.embedModel; document.getElementById('sidebar-model-row').style.display = 'flex'; }
-    if (book.vectorDim) { document.getElementById('sidebar-dim').textContent = `${book.vectorDim}D`; document.getElementById('sidebar-dim-row').style.display = 'flex'; }
-    if (book.chunkCount) { document.getElementById('sidebar-chunks').textContent = book.chunkCount; document.getElementById('sidebar-chunks-row').style.display = 'flex'; }
     ['btn-order-print','btn-order-print-2'].forEach(id => document.getElementById(id).addEventListener('click', openModal));
     document.getElementById('btn-share').addEventListener('click', async () => {
       try { if (navigator.share) await navigator.share({title:book.title,url:window.location.href});
