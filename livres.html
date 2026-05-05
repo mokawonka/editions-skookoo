@@ -57,16 +57,61 @@
 <!-- ========= LIBRARY MAIN ========= -->
 <main class="library-main" id="main-content">
   <div class="library-toolbar">
-    <div class="library-count" id="library-count" aria-live="polite">
-      Chargement…
-    </div>
-    <select class="sort-select" id="sort-select" aria-label="Trier les livres">
-      <option value="alpha">Titre (A → Z)</option>
-      <option value="alpha-desc">Titre (Z → A)</option>
-      <option value="author">Auteur (A → Z)</option>
-    </select>
-  </div>
+    <div class="library-count" id="library-count" aria-live="polite">Chargement…</div>
 
+    <div class="sort-anchor" id="sort-anchor">
+      <div class="sort-backdrop" id="sort-backdrop" onclick="closeSortPanel()"></div>
+
+      <button class="sort-trigger" id="sort-trigger" onclick="toggleSortPanel()" aria-haspopup="listbox" aria-expanded="false">
+        <span class="sort-trigger-pre">Trier</span>
+        <span class="sort-trigger-label" id="sort-trigger-label">Titre (A → Z)</span>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" class="sort-trigger-icon" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+
+      <div class="sort-popup" id="sort-popup" role="listbox" aria-label="Options de tri">
+
+        <div class="sort-pop-section">
+          <div class="sort-pop-label">Général</div>
+          <div class="sort-pop-grid">
+            <button class="sort-pop-btn selected" data-val="alpha" onclick="setSortOption(this)"><span class="spn">Titre</span><span class="sps">A → Z</span></button>
+            <button class="sort-pop-btn" data-val="alpha-desc" onclick="setSortOption(this)"><span class="spn">Titre</span><span class="sps">Z → A</span></button>
+            <button class="sort-pop-btn sort-pop-full" data-val="author" onclick="setSortOption(this)"><span class="spn">Auteur</span><span class="sps">A → Z</span></button>
+          </div>
+        </div>
+
+        <div class="sort-pop-divider"></div>
+
+        <div class="sort-pop-section">
+          <div class="sort-pop-label">Taille du livre</div>
+          <div class="sort-pop-grid">
+            <button class="sort-pop-btn" data-val="words-desc" onclick="setSortOption(this)"><span class="spn">Mots</span><span class="sps">Plus long d'abord</span></button>
+            <button class="sort-pop-btn" data-val="words-asc" onclick="setSortOption(this)"><span class="spn">Mots</span><span class="sps">Plus court d'abord</span></button>
+            <button class="sort-pop-btn" data-val="chapters-desc" onclick="setSortOption(this)"><span class="spn">Chapitres</span><span class="sps">Plus long d'abord</span></button>
+            <button class="sort-pop-btn" data-val="chapters-asc" onclick="setSortOption(this)"><span class="spn">Chapitres</span><span class="sps">Plus court d'abord</span></button>
+            <button class="sort-pop-btn" data-val="sentences-desc" onclick="setSortOption(this)"><span class="spn">Phrases</span><span class="sps">Plus longue d'abord</span></button>
+            <button class="sort-pop-btn" data-val="sentences-asc" onclick="setSortOption(this)"><span class="spn">Phrases</span><span class="sps">Plus courte d'abord</span></button>
+          </div>
+        </div>
+
+        <div class="sort-pop-divider"></div>
+
+        <div class="sort-pop-section" style="padding-bottom:12px">
+          <div class="sort-pop-label">Analyse littéraire</div>
+          <div class="sort-pop-grid">
+            <button class="sort-pop-btn" data-val="dialogue-desc" onclick="setSortOption(this)"><span class="spn">Dialogue</span><span class="sps">Plus élevé d'abord</span></button>
+            <button class="sort-pop-btn" data-val="dialogue-asc" onclick="setSortOption(this)"><span class="spn">Dialogue</span><span class="sps">Plus faible d'abord</span></button>
+            <button class="sort-pop-btn" data-val="kandel-desc" onclick="setSortOption(this)"><span class="spn">Kandel-Moles</span><span class="sps">Plus facile d'abord</span></button>
+            <button class="sort-pop-btn" data-val="kandel-asc" onclick="setSortOption(this)"><span class="spn">Kandel-Moles</span><span class="sps">Plus difficile d'abord</span></button>
+            <button class="sort-pop-btn" data-val="hapax-desc" onclick="setSortOption(this)"><span class="spn">Hapax legomena</span><span class="sps">Plus rare d'abord</span></button>
+            <button class="sort-pop-btn" data-val="hapax-asc" onclick="setSortOption(this)"><span class="spn">Hapax legomena</span><span class="sps">Plus commun d'abord</span></button>
+            <button class="sort-pop-btn" data-val="lexical-desc" onclick="setSortOption(this)"><span class="spn">Diversité lexicale</span><span class="sps">Plus riche d'abord</span></button>
+            <button class="sort-pop-btn" data-val="lexical-asc" onclick="setSortOption(this)"><span class="spn">Diversité lexicale</span><span class="sps">Plus répétitif d'abord</span></button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
   <div class="library-grid" id="library-grid" aria-label="Liste des livres">
     <!-- Squelettes de chargement -->
   </div>
@@ -122,7 +167,6 @@
   const grid       = document.getElementById('library-grid');
   const countEl    = document.getElementById('library-count');
   const searchEl   = document.getElementById('search-input');
-  const sortEl     = document.getElementById('sort-select');
   const filterRow  = document.getElementById('filter-row');
 
   // ── Squelettes ──
@@ -193,11 +237,25 @@
     }
 
     // Tri
+    const STAT_SORT_KEY = {
+      words:    b => b.raw?.stats?.word_count              ?? 0,
+      chapters: b => b.raw?.stats?.avg_chapter_length      ?? 0,
+      sentences:b => b.raw?.stats?.avg_sentence_length     ?? 0,
+      dialogue: b => b.raw?.stats?.dialogue_ratio_pct      ?? 0,
+      kandel:   b => b.raw?.stats?.kandel_moles_score      ?? 0,
+      hapax:    b => b.raw?.stats?.hapax_legomena_pct      ?? 0,
+      lexical:  b => b.raw?.stats?.lexical_diversity_msttr ?? 0,
+    };
+
     books = [...books].sort((a, b) => {
       if (sortOrder === 'alpha')      return a.title.localeCompare(b.title, 'fr');
       if (sortOrder === 'alpha-desc') return b.title.localeCompare(a.title, 'fr');
       if (sortOrder === 'author')     return a.author.localeCompare(b.author, 'fr');
-      return 0;
+
+      const [metric, dir] = sortOrder.split('-');  // e.g. "words-desc" → ["words", "desc"]
+      const keyFn = STAT_SORT_KEY[metric];
+      if (!keyFn) return 0;
+      return dir === 'desc' ? keyFn(b) - keyFn(a) : keyFn(a) - keyFn(b);
     });
 
     return books;
@@ -259,10 +317,41 @@
     }, 200);
   });
 
-  sortEl.addEventListener('change', e => {
-    sortOrder = e.target.value;
+  const SORT_LABELS = {
+    'alpha':'Titre (A → Z)','alpha-desc':'Titre (Z → A)','author':'Auteur (A → Z)',
+    'words-desc':'Mots — plus long','words-asc':'Mots — plus court',
+    'chapters-desc':'Chapitres — plus long','chapters-asc':'Chapitres — plus court',
+    'sentences-desc':'Phrases — plus longue','sentences-asc':'Phrases — plus courte',
+    'dialogue-desc':'Dialogue — plus élevé','dialogue-asc':'Dialogue — plus faible',
+    'kandel-desc':'Kandel-Moles — plus facile','kandel-asc':'Kandel-Moles — plus difficile',
+    'hapax-desc':'Hapax — plus rare','hapax-asc':'Hapax — plus commun',
+    'lexical-desc':'Diversité — plus riche','lexical-asc':'Diversité — plus répétitif',
+  };
+
+  function toggleSortPanel() {
+    const open = document.getElementById('sort-popup').classList.contains('open');
+    open ? closeSortPanel() : openSortPanel();
+  }
+  function openSortPanel() {
+    document.getElementById('sort-popup').classList.add('open');
+    document.getElementById('sort-backdrop').classList.add('open');
+    document.getElementById('sort-trigger').classList.add('open');
+    document.getElementById('sort-trigger').setAttribute('aria-expanded', 'true');
+  }
+  function closeSortPanel() {
+    document.getElementById('sort-popup').classList.remove('open');
+    document.getElementById('sort-backdrop').classList.remove('open');
+    document.getElementById('sort-trigger').classList.remove('open');
+    document.getElementById('sort-trigger').setAttribute('aria-expanded', 'false');
+  }
+  function setSortOption(btn) {
+    document.querySelectorAll('.sort-pop-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    sortOrder = btn.dataset.val;
+    document.getElementById('sort-trigger-label').textContent = SORT_LABELS[sortOrder] || sortOrder;
+    closeSortPanel();
     renderBooks();
-  });
+  }
 
   // Filtre "Tous"
   filterRow.querySelector('[data-genre="all"]').addEventListener('click', () => setGenre('all'));
