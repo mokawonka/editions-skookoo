@@ -12,22 +12,7 @@
 <body>
 
 <!-- ========= NAVIGATION ========= -->
-<nav class="nav" role="navigation" aria-label="Navigation principale">
-  <a href="index.html" class="nav-logo" aria-label="Éditions Skookoo — Accueil">
-    <img src="assets/logo.png" alt="Abeille robot — logo Éditions Skookoo" />
-    Éditions Skookoo
-  </a>
-  <ul class="nav-links" role="list">
-    <li><a href="index.html">Accueil</a></li>
-    <li><a href="livres.html">Bibliothèque</a></li>
-    <li><a href="index.html#mission">Notre mission</a></li>
-    <li><a href="index.html#processus">Processus</a></li>
-  </ul>
-  <a href="panier.html" class="nav-cart" id="nav-cart" aria-label="Panier">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-    <span class="cart-badge" id="cart-badge" style="display:none">0</span>
-  </a>
-</nav>
+<nav class="nav" role="navigation" aria-label="Navigation principale"></nav>
 
 <!-- ========= LOADING ========= -->
 <div id="page-loading" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--comb)">
@@ -400,6 +385,10 @@
             <span class="pm-qty-price" id="pm-qty-price">1 000 DA</span>
           </div>
         </div>
+        <div class="pm-controls-price-mobile" id="pm-controls-price-mobile">
+          <div class="pm-price-main" id="pm-mobile-price-total">1 000 DA</div>
+          <div class="pm-price-sub">+ 500 DA livraison</div>
+        </div>
       </div>
       <div class="pm-preview-wrap">
         <div class="pm-preview-label">Aperçu de la mise en page</div>
@@ -438,6 +427,7 @@
 </div>
 
 <script src="js/skookoo.js"></script>
+<script src="js/nav.js"></script>
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
 
@@ -479,6 +469,9 @@
     const total = ps.qty * 1000;
     document.getElementById('pm-qty-price').textContent = total.toLocaleString('fr-DZ') + ' DA';
     document.getElementById('pm-price-total').textContent = total.toLocaleString('fr-DZ') + ' DA';
+
+    const mob = document.getElementById('pm-mobile-price-total');
+    if (mob) mob.textContent = total.toLocaleString('fr-DZ') + ' DA';
   }
 
   function setSliderGradient(slider) {
