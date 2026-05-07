@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Carte des livres</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #2a1f14;
+    --bg2: #1e1509;
+    --panel: #3a2a18;
+    --panel2: #4a3520;
+    --gold: #c9a94b;
+    --gold2: #e8c870;
+    --ink: #f5e8d0;
+    --ink2: #d4c4a0;
+    --ink3: #a08060;
+    --shadow: rgba(0,0,0,0.7);
+    --glow: rgba(201,169,75,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Crimson Pro', Georgia, serif;
+    overflow: hidden;
+    width: 100vw; height: 100vh;
+    cursor: grab;
+  }
+  body.grabbing { cursor: grabbing; }
+
+  /* ── Header ── */
+  #header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    background: linear-gradient(to bottom, var(--bg2) 80%, transparent);
+    pointer-events: none;
+  }
+  #header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem; font-weight: 700; letter-spacing: .08em;
+    color: var(--gold2);
+    text-shadow: 0 2px 12px rgba(201,169,75,.5);
+  }
+  #header p {
+    font-size: .8rem; color: var(--ink3); font-style: italic;
+    letter-spacing: .04em;
+  }
+  #bookcount {
+    font-size: .78rem; color: var(--ink3); pointer-events: none;
+  }
+
+  /* ── Loading overlay ── */
+  #loading {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg2);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px;
+    transition: opacity .6s ease;
+  }
+  #loading.hidden { opacity: 0; pointer-events: none; }
+  #loading .spinner {
+    width: 54px; height: 54px;
+    border: 3px solid var(--panel2);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading .load-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem; color: var(--gold);
+    letter-spacing: .1em;
+  }
+  #loading .load-sub {
+    font-size: .85rem; color: var(--ink3); font-style: italic;
+  }
+  #progress-bar-wrap {
+    width: 260px; height: 4px; background: var(--panel2); border-radius: 4px; overflow: hidden;
+  }
+  #progress-bar {
+    height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold), var(--gold2));
+    transition: width .2s ease; border-radius: 4px;
+  }
+
+  /* ── Canvas ── */
+  #map-canvas {
+    position: fixed; inset: 0;
+    display: block;
+  }
+
+  /* ── Popup ── */
+  #popup {
+    position: fixed; z-index: 200;
+    width: 310px;
+    background: linear-gradient(145deg, #3e2c1a, #2c1e0f);
+    border: 1px solid var(--gold);
+    border-radius: 14px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.75), 0 0 0 1px rgba(201,169,75,.12), inset 0 1px 0 rgba(255,255,255,.05);
+    padding: 20px 22px 18px;
+    display: none;
+    pointer-events: all;
+    animation: popup-in .2s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes popup-in {
+    from { opacity:0; transform: scale(.92) translateY(6px); }
+    to   { opacity:1; transform: scale(1)  translateY(0);    }
+  }
+  #popup .close-btn {
+    position: absolute; top: 10px; right: 12px;
+    background: none; border: none; cursor: pointer;
+    color: var(--ink3); font-size: 1.1rem; line-height: 1;
+    transition: color .15s;
+  }
+  #popup .close-btn:hover { color: var(--gold); }
+  #popup .pop-ornament {
+    display: block; text-align: center;
+    font-size: .7rem; letter-spacing: .25em; color: var(--gold);
+    margin-bottom: 8px; opacity: .7;
+  }
+  #popup .pop-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem; font-weight: 700; color: var(--gold2);
+    line-height: 1.3; margin-bottom: 4px;
+  }
+  #popup .pop-author {
+    font-size: .8rem; color: var(--ink3); font-style: italic;
+    margin-bottom: 10px; letter-spacing: .03em;
+  }
+  #popup .pop-divider {
+    border: none; border-top: 1px solid rgba(201,169,75,.25);
+    margin: 8px 0;
+  }
+  #popup .pop-blurb {
+    font-size: .78rem; color: var(--ink2); line-height: 1.55;
+    max-height: 80px; overflow: hidden;
+    transition: max-height .4s ease;
+  }
+  #popup .pop-blurb.expanded { max-height: 220px; overflow-y: auto; }
+  #popup .pop-blurb.expanded::-webkit-scrollbar { width: 4px; }
+  #popup .pop-blurb.expanded::-webkit-scrollbar-thumb { background: var(--panel2); border-radius: 4px; }
+  #popup .expand-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: .72rem; color: var(--gold); font-style: italic;
+    padding: 3px 0; display: block; margin-top: 4px;
+    transition: color .15s;
+  }
+  #popup .expand-btn:hover { color: var(--gold2); }
+  #popup .pop-cta {
+    display: block; width: 100%; margin-top: 14px;
+    padding: 9px 0; text-align: center;
+    background: linear-gradient(135deg, #7a5520, #c9a94b);
+    color: #1a1005; font-family: 'Playfair Display', serif;
+    font-size: .82rem; font-weight: 700; letter-spacing: .07em;
+    text-decoration: none; border-radius: 7px;
+    box-shadow: 0 2px 10px rgba(201,169,75,.25);
+    transition: filter .15s, transform .12s;
+  }
+  #popup .pop-cta:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+  /* ── Legend ── */
+  #legend {
+    position: fixed; bottom: 18px; right: 18px; z-index: 100;
+    background: rgba(30,21,9,.88);
+    border: 1px solid rgba(201,169,75,.3);
+    border-radius: 10px; padding: 12px 16px;
+    font-size: .72rem; color: var(--ink3);
+    backdrop-filter: blur(4px);
+    max-width: 180px;
+  }
+  #legend h3 {
+    font-family: 'Playfair Display', serif; font-size: .78rem;
+    color: var(--gold); margin-bottom: 8px; letter-spacing: .06em;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .legend-hex { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* ── Zoom controls ── */
+  #zoom-controls {
+    position: fixed; bottom: 18px; left: 18px; z-index: 100;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .zoom-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: rgba(30,21,9,.9); border: 1px solid rgba(201,169,75,.35);
+    color: var(--gold); font-size: 1.2rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+  }
+  .zoom-btn:hover { background: var(--panel2); border-color: var(--gold); }
+
+  /* ── Error banner ── */
+  #error-banner {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    z-index: 300; background: #5a1a1a; border: 1px solid #c44;
+    border-radius: 8px; padding: 10px 18px;
+    font-size: .82rem; color: #f8b0b0; display: none;
+    max-width: 480px; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="load-title">Carte sémantique</div>
+  <div class="load-sub" id="load-status">Chargement de la bibliothèque…</div>
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+</div>
+
+<div id="header">
+    <a id="return-btn" href="index.html" style="
+    position:fixed; top:14px; left:18px; z-index:150;
+    background:rgba(30,21,9,.9); border:1px solid rgba(201,169,75,.35);
+    color:var(--gold); font-family:'Playfair Display',serif;
+    font-size:.78rem; letter-spacing:.06em;
+    padding:7px 14px; border-radius:8px; text-decoration:none;
+    cursor:pointer; pointer-events:auto;
+    transition:background .15s, border-color .15s;
+    " onmouseover="this.style.background='#4a3520';this.style.borderColor='#c9a94b'"
+    onmouseout="this.style.background='rgba(30,21,9,.9)';this.style.borderColor='rgba(201,169,75,.35)'">
+    ← Retour
+    </a>
+    <div style="position:absolute; left:50%; transform:translateX(-50%); text-align:center; pointer-events:none;">
+        <h1>✦ Carte sémantique</h1>
+        <p>Cartographie sémantique de la bibliothèque</p>
+    </div>
+    <div id="bookcount"></div>
+</div>
+
+<canvas id="map-canvas"></canvas>
+
+<div id="popup">
+  <button class="close-btn" onclick="forceClosePopup()">✕</button>
+  <span class="pop-ornament">— — ✦ — —</span>
+  <div class="pop-title" id="pop-title"></div>
+  <div class="pop-author" id="pop-author"></div>
+  <hr class="pop-divider"/>
+  <div class="pop-blurb" id="pop-blurb"></div>
+  <button class="expand-btn" id="expand-btn" onclick="toggleBlurb()">Lire plus ▾</button>
+  <a class="pop-cta" id="pop-cta" href="#" target="_blank">Page du livre →</a>
+</div>
+
+<div id="legend">
+  <h3>Clusters</h3>
+  <div id="legend-items"></div>
+</div>
+
+<div id="zoom-controls">
+  <button class="zoom-btn" onclick="adjustZoom(1.25)">+</button>
+  <button class="zoom-btn" onclick="adjustZoom(0.8)">−</button>
+</div>
+
+<div id="error-banner" id="error-banner"></div>
+
+<!-- UMAP-JS via CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/umap-js/1.3.3/umap-js.min.js"></script>
+
+<script>
+// ──────────────────────────────────────────────
+// CONFIG
+// ──────────────────────────────────────────────
+const BASE = 'https://pub-e40dd4d214674632a4c513ef3797acfe.r2.dev';
+const MANIFEST_PATHS = ['index.json'];
+
+// Fallback: known folder names (will be augmented by manifest)
+let KNOWN_FOLDERS = [];
+
+// ──────────────────────────────────────────────
+// CLUSTER PALETTE  (10 distinct warm tones)
+// ──────────────────────────────────────────────
+const CLUSTER_COLORS = [
+  '#e07b4a','#5ba3d0','#8bc98b','#d4a34b','#c97dc7',
+  '#7eccc0','#e07a7a','#9aac5b','#a07ad4','#d4c060'
+];
+const CLUSTER_STROKE = [
+  '#f0a070','#80c8f8','#b0e8b0','#f0c870','#e8a0e8',
+  '#a0ece8','#f0a0a0','#c0d080','#c0a0f0','#f0e080'
+];
+
+// ──────────────────────────────────────────────
+// STATE
+// ──────────────────────────────────────────────
+let books = [];          // { folder, title, author, blurb, x, y, cluster, color }
+let transform = { x: 0, y: 0, scale: 1 };
+let dragging = false, dragStart = {x:0,y:0}, transformStart = {x:0,y:0};
+let activeBook = null;
+let animFrame = null;
+let pinned = false;   // true = popup locked by click, ignore hover
+
+
+const canvas = document.getElementById('map-canvas');
+const ctx    = canvas.getContext('2d');
+
+// ──────────────────────────────────────────────
+// UTILS
+// ──────────────────────────────────────────────
+function setStatus(msg) { document.getElementById('load-status').textContent = msg; }
+function setProgress(p) { document.getElementById('progress-bar').style.width = Math.min(100,p)+'%'; }
+function showError(msg) {
+  const b = document.getElementById('error-banner');
+  b.style.display = 'block'; b.textContent = msg;
+}
+
+// ──────────────────────────────────────────────
+// 1. DISCOVER BOOKS
+// ──────────────────────────────────────────────
+async function discoverBooks() {
+  // Try manifest files first
+  for (const mf of MANIFEST_PATHS) {
+    try {
+      const r = await fetch(`${BASE}/${mf}`);
+      if (r.ok) {
+        const j = await r.json();
+        const folders = Array.isArray(j) ? j : (j.books || j.folders || Object.keys(j));
+        if (folders.length) return folders;
+      }
+    } catch {}
+  }
+
+  // Try AWS-style XML listing
+  try {
+    const r = await fetch(`${BASE}/?list-type=2&delimiter=/`);
+    if (r.ok) {
+      const text = await r.text();
+      const prefixes = [...text.matchAll(/<Prefix>([^<]+)\/<\/Prefix>/g)].map(m=>m[1]);
+      if (prefixes.length) return prefixes;
+    }
+  } catch {}
+
+  // Try plain XML listing
+  try {
+    const r = await fetch(BASE + '/');
+    if (r.ok) {
+      const text = await r.text();
+      const prefixes = [...text.matchAll(/<Prefix>([^/<]+)\//g)].map(m=>m[1]);
+      if (prefixes.length) return [...new Set(prefixes)];
+    }
+  } catch {}
+
+  return [];
+}
+
+// ──────────────────────────────────────────────
+// 2. FETCH METADATA
+// ──────────────────────────────────────────────
+async function fetchMeta(folder) {
+  const urls = [
+    `${BASE}/${folder}/metadata.json`,
+    `${BASE}/${encodeURIComponent(folder)}/metadata.json`,
+  ];
+  for (const url of urls) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return await r.json();
+    } catch {}
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────
+// 3. UMAP
+// ──────────────────────────────────────────────
+async function runUMAP(vectors) {
+  setStatus('Calcul de la projection UMAP…');
+
+  // Reduce dimensionality with PCA first if vectors are very large
+  let vecs = vectors;
+  const dim = vecs[0].length;
+  if (dim > 100) {
+    setStatus('Réduction PCA…');
+    vecs = pcaReduce(vecs, 50);
+  }
+
+  const umap = new UMAP.UMAP({
+    nComponents: 2,
+    nNeighbors: Math.min(15, Math.floor(vecs.length * 0.5) || 2),
+    minDist: 0.2,
+    spread: 1.2,
+    nEpochs: 300,
+  });
+
+  return umap.fit(vecs);
+}
+
+// Lightweight PCA reduction
+function pcaReduce(matrix, targetDim) {
+  const n = matrix.length;
+  const d = matrix[0].length;
+  const k = Math.min(targetDim, d, n);
+
+  // Center
+  const means = new Float64Array(d);
+  for (let i = 0; i < n; i++) for (let j = 0; j < d; j++) means[j] += matrix[i][j];
+  for (let j = 0; j < d; j++) means[j] /= n;
+  const centered = matrix.map(row => row.map((v,j) => v - means[j]));
+
+  // Power iteration for top-k principal components (fast approx)
+  const components = [];
+  let residual = centered.map(r => [...r]);
+
+  for (let c = 0; c < k; c++) {
+    let vec = Array.from({length: d}, () => Math.random() - 0.5);
+    // Normalize
+    let norm = Math.sqrt(vec.reduce((s,v)=>s+v*v,0));
+    vec = vec.map(v=>v/norm);
+
+    for (let iter = 0; iter < 30; iter++) {
+      // Av = residual^T * (residual * vec)
+      const proj = residual.map(row => row.reduce((s,v,j)=>s+v*vec[j],0));
+      const newvec = new Array(d).fill(0);
+      for (let i = 0; i < n; i++) for (let j = 0; j < d; j++) newvec[j] += residual[i][j] * proj[i];
+      norm = Math.sqrt(newvec.reduce((s,v)=>s+v*v,0));
+      if (norm < 1e-10) break;
+      vec = newvec.map(v=>v/norm);
+    }
+    components.push(vec);
+    // Deflate
+    for (let i = 0; i < n; i++) {
+      const dot = residual[i].reduce((s,v,j)=>s+v*vec[j],0);
+      for (let j = 0; j < d; j++) residual[i][j] -= dot * vec[j];
+    }
+  }
+  return centered.map(row => components.map(comp => row.reduce((s,v,j)=>s+v*comp[j],0)));
+}
+
+// ──────────────────────────────────────────────
+// 4. K-MEANS CLUSTERING
+// ──────────────────────────────────────────────
+function kMeans(points, k, iters=60) {
+  k = Math.min(k, points.length);
+  let centroids = points.slice(0, k).map(p=>[...p]);
+  let labels = new Array(points.length).fill(0);
+
+  for (let iter = 0; iter < iters; iter++) {
+    // Assign
+    let changed = false;
+    for (let i = 0; i < points.length; i++) {
+      let best = 0, bestD = Infinity;
+      for (let c = 0; c < k; c++) {
+        const d = dist2(points[i], centroids[c]);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      if (labels[i] !== best) { labels[i] = best; changed = true; }
+    }
+    if (!changed) break;
+    // Update centroids
+    const sums = Array.from({length:k}, ()=>[0,0]);
+    const counts = new Array(k).fill(0);
+    for (let i = 0; i < points.length; i++) {
+      sums[labels[i]][0] += points[i][0];
+      sums[labels[i]][1] += points[i][1];
+      counts[labels[i]]++;
+    }
+    for (let c = 0; c < k; c++) {
+      if (counts[c]) centroids[c] = [sums[c][0]/counts[c], sums[c][1]/counts[c]];
+    }
+  }
+  return labels;
+}
+
+function dist2(a,b){ return (a[0]-b[0])**2 + (a[1]-b[1])**2; }
+
+// ──────────────────────────────────────────────
+// 5. LAYOUT – HEXAGONAL GRID (force-push)
+// ──────────────────────────────────────────────
+function layoutHoneycomb(coords, hexR) {
+  // Place each book on a hex grid snapped to nearest position, no overlap
+  const HEX_W = hexR * 2;
+  const HEX_H = Math.sqrt(3) * hexR;
+  const occupied = new Map();
+
+  function hexKey(q,r){ return `${q},${r}`; }
+  function hexCenter(q,r){
+    const x = HEX_W * (q + 0.5*r);
+    const y = HEX_H * r;
+    return [x, y];
+  }
+  function nearestHex(cx,cy){
+    const r = Math.round(cy / HEX_H);
+    const q = Math.round(cx / HEX_W - 0.5*r);
+    return [q,r];
+  }
+  function spiralNeighbors(q,r,maxRing=80){
+    const result=[[q,r]];
+    for(let ring=1;ring<maxRing;ring++){
+      let cq=q+ring, cr=r;
+      const dirs=[[-1,1],[0,-1],[-1,0],[1,-1],[0,1],[1,0]];
+      for(const [dq,dr] of dirs) for(let s=0;s<ring;s++){ result.push([cq,cr]); cq+=dq; cr+=dr; }
+    }
+    return result;
+  }
+
+  return coords.map(([cx,cy])=>{
+    const [bq,br] = nearestHex(cx,cy);
+    for(const [q,r] of spiralNeighbors(bq,br)){
+      const k = hexKey(q,r);
+      if(!occupied.has(k)){
+        occupied.set(k,true);
+        return hexCenter(q,r);
+      }
+    }
+    return [cx,cy];
+  });
+}
+
+// ──────────────────────────────────────────────
+// 6. DRAW
+// ──────────────────────────────────────────────
+let HEX_R = 28;
+
+function hexPath(cx,cy,r){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const angle = Math.PI/180 * (60*i - 30);
+    const x = cx + r*Math.cos(angle);
+    const y = cy + r*Math.sin(angle);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+}
+
+function worldToScreen(wx,wy){
+  return [
+    wx * transform.scale + transform.x,
+    wy * transform.scale + transform.y
+  ];
+}
+function screenToWorld(sx,sy){
+  return [
+    (sx - transform.x) / transform.scale,
+    (sy - transform.y) / transform.scale
+  ];
+}
+
+function draw(){
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  ctx.fillStyle = '#2a1f14';
+  ctx.fillRect(0,0,W,H);
+
+  // Subtle grid
+  ctx.save();
+  ctx.translate(transform.x, transform.y);
+  ctx.scale(transform.scale, transform.scale);
+  const gridSize = 120;
+  const startX = Math.floor(-transform.x/(transform.scale*gridSize)-1)*gridSize;
+  const startY = Math.floor(-transform.y/(transform.scale*gridSize)-1)*gridSize;
+  ctx.strokeStyle = 'rgba(201,169,75,0.04)';
+  ctx.lineWidth = 1/transform.scale;
+  for(let x=startX; x<(W-transform.x)/transform.scale+gridSize; x+=gridSize){
+    ctx.beginPath(); ctx.moveTo(x,-5000); ctx.lineTo(x,5000); ctx.stroke();
+  }
+  for(let y=startY; y<(H-transform.y)/transform.scale+gridSize; y+=gridSize){
+    ctx.beginPath(); ctx.moveTo(-5000,y); ctx.lineTo(5000,y); ctx.stroke();
+  }
+
+  if(!books.length){ ctx.restore(); return; }
+
+  const displayR = HEX_R;
+  const innerR   = displayR * 0.84;
+  const glowR    = displayR * 1.5;
+
+  for(let i=0;i<books.length;i++){
+    const b = books[i];
+    const wx = b.layoutX, wy = b.layoutY;
+    const isActive = activeBook && activeBook === b;
+    const cr = CLUSTER_COLORS[b.cluster % CLUSTER_COLORS.length];
+    const cs = CLUSTER_STROKE[b.cluster % CLUSTER_STROKE.length];
+
+    // Glow for active
+    if(isActive){
+      ctx.save();
+      const grad = ctx.createRadialGradient(wx,wy,0,wx,wy,glowR);
+      grad.addColorStop(0,'rgba(201,169,75,0.35)');
+      grad.addColorStop(1,'rgba(201,169,75,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(wx,wy,glowR,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // Hex shadow
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur  = 12/transform.scale;
+    ctx.shadowOffsetY = 3/transform.scale;
+    hexPath(wx,wy,innerR);
+    ctx.fillStyle = isActive ? '#1a1005' : '#1e1408';
+    ctx.fill();
+    ctx.restore();
+
+    // Hex face gradient
+    hexPath(wx,wy,innerR);
+    const grad2 = ctx.createRadialGradient(wx-innerR*.2,wy-innerR*.2,0, wx,wy,innerR*1.3);
+    grad2.addColorStop(0, cr+'dd');
+    grad2.addColorStop(0.7, cr+'99');
+    grad2.addColorStop(1, cr+'55');
+    ctx.fillStyle = grad2;
+    ctx.fill();
+
+    // Hex border
+    hexPath(wx,wy,innerR);
+    ctx.strokeStyle = isActive ? '#f0d090' : cs+'cc';
+    ctx.lineWidth = (isActive ? 2.5 : 1.5) / transform.scale;
+    ctx.stroke();
+
+    // Inner thin ring
+    hexPath(wx,wy,innerR*0.66);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 0.8/transform.scale;
+    ctx.stroke();
+
+    // Book icon dot
+    ctx.beginPath();
+    ctx.arc(wx,wy,3.5/transform.scale,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ──────────────────────────────────────────────
+// 7. HIT TEST
+// ──────────────────────────────────────────────
+function hitTest(sx,sy){
+  const [wx,wy] = screenToWorld(sx,sy);
+  const r = HEX_R * 0.84;
+  let best=null, bestD=Infinity;
+  for(const b of books){
+    const d = Math.hypot(b.layoutX-wx, b.layoutY-wy);
+    if(d<r && d<bestD){ bestD=d; best=b; }
+  }
+  return best;
+}
+
+// ──────────────────────────────────────────────
+// 8. POPUP
+// ──────────────────────────────────────────────
+let blurbExpanded = false;
+
+function showPopup(book, sx, sy){
+  activeBook = book;
+  blurbExpanded = false;
+
+  document.getElementById('pop-title').textContent  = book.title;
+  document.getElementById('pop-author').textContent = book.author ? `— ${book.author}` : '';
+  const blurbEl = document.getElementById('pop-blurb');
+  blurbEl.textContent = book.blurb || 'Aucun résumé disponible.';
+  blurbEl.classList.remove('expanded');
+  document.getElementById('expand-btn').textContent = 'Lire plus ▾';
+
+  const hasLongBlurb = (book.blurb||'').length > 160;
+  document.getElementById('expand-btn').style.display = hasLongBlurb ? 'block' : 'none';
+
+  const ctaEl = document.getElementById('pop-cta');
+  ctaEl.href = `livre.html?id=${book.folder}`;
+
+  const popup = document.getElementById('popup');
+  popup.style.display = 'block';
+
+  // Smart positioning
+  const W = window.innerWidth, H = window.innerHeight;
+  const popW=320, popH=280;
+  let left = sx + 18, top = sy - 30;
+  if(left+popW > W-10) left = sx - popW - 18;
+  if(top+popH > H-10) top = H - popH - 10;
+  if(top < 60) top = 60;
+  popup.style.left = left+'px';
+  popup.style.top  = top+'px';
+  draw();
+}
+
+function closePopup() {
+  if (pinned) return;   // don't close if pinned
+  document.getElementById('popup').style.display = 'none';
+  activeBook = null;
+  draw();
+}
+
+function forceClosePopup() {
+  pinned = false;
+  activeBook = null;
+  document.getElementById('popup').style.display = 'none';
+  draw();
+}
+
+function toggleBlurb(){
+  blurbExpanded = !blurbExpanded;
+  const el = document.getElementById('pop-blurb');
+  const btn = document.getElementById('expand-btn');
+  el.classList.toggle('expanded', blurbExpanded);
+  btn.textContent = blurbExpanded ? 'Réduire ▴' : 'Lire plus ▾';
+}
+
+// ──────────────────────────────────────────────
+// 9. INTERACTION
+// ──────────────────────────────────────────────
+function resize(){
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  draw();
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (dragging) {
+    transform.x = transformStart.x + (e.clientX - dragStart.x);
+    transform.y = transformStart.y + (e.clientY - dragStart.y);
+    draw();
+    return;
+  }
+  if (pinned) return;   // don't override a pinned popup on hover
+  const b = hitTest(e.clientX, e.clientY);
+  if (b) {
+    showPopup(b, e.clientX, e.clientY);
+  } else {
+    closePopup();
+  }
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  const b = hitTest(e.clientX, e.clientY);
+  if (b) {
+    if (pinned && activeBook === b) {
+      // clicking the same book unpins
+      pinned = false;
+      closePopup();
+    } else {
+      pinned = true;
+      showPopup(b, e.clientX, e.clientY);
+    }
+    return;
+  }
+  // clicked empty space — unpin and start drag
+  pinned = false;
+  closePopup();
+  dragging = true;
+  dragStart = { x: e.clientX, y: e.clientY };
+  transformStart = { x: transform.x, y: transform.y };
+  document.body.classList.add('grabbing');
+});
+
+canvas.addEventListener('mouseup', () => {
+  dragging = false;
+  document.body.classList.remove('grabbing');
+});
+
+canvas.addEventListener('mouseleave', () => {
+  dragging = false;
+  document.body.classList.remove('grabbing');
+  if (!pinned) closePopup();   // dismiss hover popup when leaving canvas
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.88 : 1.12;
+  const wx = e.clientX, wy = e.clientY;
+  transform.x = wx - (wx-transform.x)*factor;
+  transform.y = wy - (wy-transform.y)*factor;
+  transform.scale *= factor;
+  transform.scale = Math.max(0.12, Math.min(8, transform.scale));
+  draw();
+}, {passive:false});
+
+// Touch
+let lastTouchDist=0;
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){
+    const t=e.touches[0];
+    const b=hitTest(t.clientX,t.clientY);
+    if(b){ showPopup(b,t.clientX,t.clientY); return; }
+    dragging=true; dragStart={x:t.clientX,y:t.clientY};
+    transformStart={x:transform.x,y:transform.y};
+    closePopup();
+  } else if(e.touches.length===2){
+    dragging=false;
+    lastTouchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                              e.touches[0].clientY-e.touches[1].clientY);
+  }
+},{passive:true});
+canvas.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  if(e.touches.length===1 && dragging){
+    const t=e.touches[0];
+    transform.x=transformStart.x+(t.clientX-dragStart.x);
+    transform.y=transformStart.y+(t.clientY-dragStart.y);
+  } else if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+    const factor=d/lastTouchDist; lastTouchDist=d;
+    const mx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+    const my=(e.touches[0].clientY+e.touches[1].clientY)/2;
+    transform.x=mx-(mx-transform.x)*factor;
+    transform.y=my-(my-transform.y)*factor;
+    transform.scale=Math.max(0.12,Math.min(8,transform.scale*factor));
+  }
+  draw();
+},{passive:false});
+canvas.addEventListener('touchend',()=>{ dragging=false; });
+
+function adjustZoom(factor){
+  const cx=canvas.width/2, cy=canvas.height/2;
+  transform.x=cx-(cx-transform.x)*factor;
+  transform.y=cy-(cy-transform.y)*factor;
+  transform.scale=Math.max(0.12,Math.min(8,transform.scale*factor));
+  draw();
+}
+
+// ──────────────────────────────────────────────
+// 10. LEGEND
+// ──────────────────────────────────────────────
+function buildLegend(clusters){
+  const container = document.getElementById('legend-items');
+  container.innerHTML='';
+  const used = [...new Set(clusters)].sort((a,b)=>a-b);
+  used.forEach(c=>{
+    const div=document.createElement('div');
+    div.className='legend-item';
+    const svg=`<svg class="legend-hex" viewBox="-1 -1 2 2" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="${hexPoints(0,0,0.9)}" fill="${CLUSTER_COLORS[c%CLUSTER_COLORS.length]}" stroke="${CLUSTER_STROKE[c%CLUSTER_STROKE.length]}" stroke-width="0.1"/>
+    </svg>`;
+    div.innerHTML=`${svg}<span>Cluster ${c+1}</span>`;
+    container.appendChild(div);
+  });
+}
+function hexPoints(cx,cy,r){
+  return Array.from({length:6},(_,i)=>{
+    const a=Math.PI/180*(60*i-30);
+    return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+  }).join(' ');
+}
+
+// ──────────────────────────────────────────────
+// 11. FIT VIEW
+// ──────────────────────────────────────────────
+function fitView(){
+  if(!books.length) return;
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const b of books){
+    minX=Math.min(minX,b.layoutX); maxX=Math.max(maxX,b.layoutX);
+    minY=Math.min(minY,b.layoutY); maxY=Math.max(maxY,b.layoutY);
+  }
+  const W=canvas.width, H=canvas.height;
+  const pad=120;
+  const scaleX=(W-pad*2)/(maxX-minX||1);
+  const scaleY=(H-pad*2)/(maxY-minY||1);
+  transform.scale=Math.min(scaleX,scaleY,2);
+  transform.x=W/2-((minX+maxX)/2)*transform.scale;
+  transform.y=H/2-((minY+maxY)/2)*transform.scale;
+}
+
+// ──────────────────────────────────────────────
+// 12. MAIN
+// ──────────────────────────────────────────────
+async function main(){
+  resize();
+  window.addEventListener('resize', resize);
+
+  setStatus('Découverte de la bibliothèque…');
+  setProgress(5);
+
+  let folders = await discoverBooks();
+
+  if(!folders.length){
+    // As a graceful fallback, show a demo with mock data so the map still renders
+    setStatus('Chargement de données de démonstration…');
+    folders = generateDemoFolders();
+    books = generateDemoBooks(folders);
+  } else {
+    // Fetch all metadata
+    const metas = [];
+    for(let i=0;i<folders.length;i++){
+      setStatus(`Chargement ${i+1}/${folders.length}: ${folders[i]}`);
+      setProgress(5 + (i/folders.length)*45);
+      const m = await fetchMeta(folders[i]);
+      if(m && m.mean_vector && m.mean_vector.length>0){
+        metas.push({ folder: folders[i], ...m });
+      }
+    }
+
+    if(!metas.length){
+      showError('Aucun ebook avec vecteurs trouvé. Vérifiez le bucket R2.');
+      document.getElementById('loading').classList.add('hidden');
+      return;
+    }
+
+    // Run UMAP
+    setProgress(55);
+    setStatus('Projection UMAP en cours…');
+    let embedding;
+    try {
+      embedding = await runUMAP(metas.map(m=>m.mean_vector));
+    } catch(e){
+      console.error('UMAP error:', e);
+      // PCA fallback (2D projection)
+      embedding = pcaReduce(metas.map(m=>m.mean_vector), 2);
+    }
+
+    // Cluster
+    setStatus('Clustering…');
+    setProgress(70);
+    const nClusters = Math.min(CLUSTER_COLORS.length, Math.max(2, Math.ceil(Math.sqrt(metas.length))));
+    const clusterLabels = kMeans(embedding, nClusters);
+
+    // Normalize embedding to world coords
+    let ex=embedding.map(p=>p[0]), ey=embedding.map(p=>p[1]);
+    const exmin=Math.min(...ex),exmax=Math.max(...ex);
+    const eymin=Math.min(...ey),eymax=Math.max(...ey);
+    const worldSize = Math.max(600, metas.length * 40);
+    const normX = ex.map(v=>(v-exmin)/(exmax-exmin||1)*worldSize - worldSize/2);
+    const normY = ey.map(v=>(v-eymin)/(eymax-eymin||1)*worldSize - worldSize/2);
+
+    // Hexagonal layout
+    setStatus('Disposition hexagonale…');
+    setProgress(80);
+    const hexR = Math.max(28, Math.min(50, 300/Math.sqrt(metas.length)));
+    HEX_R = hexR;
+    const positions = layoutHoneycomb(normX.map((x,i)=>[x,normY[i]]), hexR * 1.15);
+
+    books = metas.map((m,i)=>({
+      folder: m.folder,
+      title:  m.title  || m.folder,
+      author: m.author || '',
+      blurb:  m.blurb  || '',
+      cluster: clusterLabels[i],
+      layoutX: positions[i][0],
+      layoutY: positions[i][1],
+    }));
+  }
+
+  setProgress(95);
+  setStatus('Rendu de la carte…');
+  document.getElementById('bookcount').textContent = `${books.length} livre${books.length>1?'s':''}`;
+
+  const clusterIds = books.map(b=>b.cluster);
+  buildLegend(clusterIds);
+
+  fitView();
+  draw();
+
+  setProgress(100);
+  setTimeout(()=>{ document.getElementById('loading').classList.add('hidden'); }, 400);
+}
+
+// ──────────────────────────────────────────────
+// DEMO DATA (if bucket unreachable)
+// ──────────────────────────────────────────────
+function generateDemoFolders(){ return []; }
+function generateDemoBooks(){
+  const titles = [
+    ['Le Mystérieux Docteur Cornélius','Gustave Le Rouge'],
+    ['Les Misérables','Victor Hugo'],
+    ['Vingt mille lieues sous les mers','Jules Verne'],
+    ['Le Tour du monde en 80 jours','Jules Verne'],
+    ['Le Comte de Monte-Cristo','Alexandre Dumas'],
+    ['Germinal','Émile Zola'],
+    ['Madame Bovary','Gustave Flaubert'],
+    ['Le Rouge et le Noir','Stendhal'],
+    ['Notre-Dame de Paris','Victor Hugo'],
+    ['Bel-Ami','Guy de Maupassant'],
+    ["L'Assommoir",'Émile Zola'],
+    ['Les Trois Mousquetaires','Alexandre Dumas'],
+    ["À la recherche du temps perdu",'Marcel Proust'],
+    ["L'Éducation sentimentale",'Gustave Flaubert'],
+    ['Nana','Émile Zola'],
+    ["Voyage au centre de la Terre",'Jules Verne'],
+    ['Le Père Goriot','Honoré de Balzac'],
+    ['Eugénie Grandet','Honoré de Balzac'],
+    ['La Bête Humaine','Émile Zola'],
+    ["Les Fleurs du Mal",'Charles Baudelaire'],
+    ['Candide','Voltaire'],
+    ['Les Liaisons Dangereuses','Choderlos de Laclos'],
+    ['Manon Lescaut','Abbé Prévost'],
+    ["Paul et Virginie",'Bernardin de Saint-Pierre'],
+    ["Les Chouans",'Honoré de Balzac'],
+  ];
+  const rng = (()=>{ let s=42; return ()=>{ s=(s*16807)%2147483647; return (s-1)/2147483646; }; })();
+  const n=titles.length;
+  const pts=[];
+  const clusters=[];
+  const nc=6;
+  for(let i=0;i<n;i++){
+    const c=i%nc; clusters.push(c);
+    const angle=(c/nc)*Math.PI*2+(rng()-.5)*.6;
+    const rad=180+rng()*80;
+    pts.push([Math.cos(angle)*rad+(rng()-.5)*40, Math.sin(angle)*rad+(rng()-.5)*40]);
+  }
+  HEX_R=32;
+  const positions=layoutHoneycomb(pts, HEX_R*1.15);
+  return titles.map(([title,author],i)=>({
+    folder: title.toLowerCase().replace(/\s+/g,'-'),
+    title, author, blurb: `${title} est un chef-d'œuvre de la littérature française par ${author}. Cette œuvre captivante transporte le lecteur dans un univers unique, mêlant aventure, passion et réflexion. Une lecture incontournable pour tout amateur de littérature classique.`,
+    cluster: clusters[i],
+    layoutX: positions[i][0],
+    layoutY: positions[i][1],
+  }));
+}
+
+// Wait for UMAP to load
+window.addEventListener('load', ()=>{
+  if(typeof UMAP === 'undefined'){
+    // Retry after short delay
+    setTimeout(main, 800);
+  } else {
+    main();
+  }
+});
+</script>
+</body>
+</html>

@@ -36,7 +36,7 @@
       Éditions Skookoo
     </a>
     <ul class="nav-links" role="list">
-      <li><a href="index.html"${activeIf(isHome)}>Accueil</a></li>
+      <li><a href="carte.html"${activeIf(isHome)}>La carte</a></li>
       <li><a href="livres.html"${activeIf(isLibrary)}>Bibliothèque</a></li>
       <li><a href="index.html#mission">Notre mission</a></li>
       <li><a href="index.html#processus">Processus</a></li>
@@ -62,7 +62,7 @@
   drawer.setAttribute('aria-label', 'Menu de navigation');
   drawer.innerHTML = `
     <nav class="mobile-menu">
-      <a href="index.html"${activeIf(isHome)}>Accueil</a>
+      <a href="carte.html"${activeIf(isHome)}>La carte</a>
       <a href="livres.html"${activeIf(isLibrary)}>Bibliothèque</a>
       <a href="index.html#mission">Notre mission</a>
       <a href="index.html#processus">Processus</a>
