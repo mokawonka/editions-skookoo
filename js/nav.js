@@ -6,7 +6,7 @@
 (function () {
   /* ── Detect active page ── */
   const path = window.location.pathname;
-  const isHome    = path.endsWith('index.html') || path.endsWith('/');
+  const isCarte   = path.includes('carte.html');
   const isLibrary = path.includes('livres');
   const isBook    = path.includes('livre.html');
   const isCart    = path.includes('panier');
@@ -36,7 +36,7 @@
       Éditions Skookoo
     </a>
     <ul class="nav-links" role="list">
-      <li><a href="carte.html"${activeIf(isHome)}>La carte</a></li>
+      <li><a href="carte.html"${activeIf(isCarte)}>La carte</a></li>
       <li><a href="livres.html"${activeIf(isLibrary)}>Bibliothèque</a></li>
       <li><a href="index.html#mission">Notre mission</a></li>
       <li><a href="index.html#processus">Processus</a></li>
@@ -62,7 +62,7 @@
   drawer.setAttribute('aria-label', 'Menu de navigation');
   drawer.innerHTML = `
     <nav class="mobile-menu">
-      <a href="carte.html"${activeIf(isHome)}>La carte</a>
+      <a href="carte.html"${activeIf(isCarte)}>La carte</a>
       <a href="livres.html"${activeIf(isLibrary)}>Bibliothèque</a>
       <a href="index.html#mission">Notre mission</a>
       <a href="index.html#processus">Processus</a>
